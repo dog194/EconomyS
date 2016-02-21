@@ -2,7 +2,7 @@
 
 /*
  * EconomyS, the massive economy plugin with many features for PocketMine-MP
- * Copyright (C) 2013-2015  onebone <jyc00410@gmail.com>
+ * Copyright (C) 2013-2016  onebone <jyc00410@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,6 @@
 
 namespace onebone\economyshop;
 
-use onebone\economyshop\event\ShopCreationEvent;
-use onebone\economyshop\event\ShopTransactionEvent;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\event\block\BlockBreakEvent;
@@ -29,7 +27,7 @@ use pocketmine\event\block\BlockPlaceEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerJoinEvent;
-use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\event\entity\EntityTeleportEvent;
 use pocketmine\item\Item;
 use pocketmine\level\Position;
 use pocketmine\math\Vector3;
@@ -38,9 +36,12 @@ use pocketmine\plugin\PluginBase;
 use pocketmine\utils\TextFormat;
 
 use onebone\economyapi\EconomyAPI;
+
 use onebone\economyshop\provider\DataProvider;
 use onebone\economyshop\provider\YamlDataProvider;
 use onebone\economyshop\item\ItemDisplayer;
+use onebone\economyshop\event\ShopCreationEvent;
+use onebone\economyshop\event\ShopTransactionEvent;
 
 class EconomyShop extends PluginBase implements Listener{
 	/**
@@ -56,11 +57,11 @@ class EconomyShop extends PluginBase implements Listener{
 	private $items = [];
 
 	public function onEnable(){
-		if(!file_exists($this->getDataFolder())){
-			mkdir($this->getDataFolder());
-		}
-
 		$this->saveDefaultConfig();
+
+		if(!$this->selectLang()){
+			$this->getLogger()->warning("Invalid language option was given.");
+		}
 
 		$provider = $this->getConfig()->get("data-provider");
 		switch(strtolower($provider)){
@@ -89,9 +90,6 @@ class EconomyShop extends PluginBase implements Listener{
 		}
 
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
-
-		$this->lang = json_decode((stream_get_contents($rsc = $this->getResource("lang_en.json"))), true);
-		@fclose($rsc);
 	}
 
 	public function onCommand(CommandSender $sender, Command $command, $label, array $params){
@@ -187,13 +185,19 @@ class EconomyShop extends PluginBase implements Listener{
 		}
 	}
 
-	public function onPlayerTeleport(PlayerMoveEvent $event){
-		if($event->getFrom()->getLevel() !== $event->getTo()->getLevel()){
-			$to = $event->getTo()->getLevel();
-			if(isset($this->items[$to->getFolderName()])){
-				$player = $event->getPlayer();
-				foreach($this->items[$to->getFolderName()] as $displayer){
-					$displayer->spawnTo($player);
+	public function onPlayerTeleport(EntityTeleportEvent $event){
+		$player = $event->getEntity();
+		if($player instanceof Player){
+			if(($from = $event->getFrom()->getLevel()) !== ($to = $event->getTo()->getLevel())){
+				if(isset($this->items[$from->getFolderName()])){
+					foreach($this->items[$from->getFolderName()] as $displayer){
+						$displayer->despawnFrom($player);
+					}
+				}
+				if(isset($this->items[$to->getFolderName()])){
+					foreach($this->items[$to->getFolderName()] as $displayer){
+						$displayer->spawnTo($player);
+					}
 				}
 			}
 		}
@@ -281,7 +285,7 @@ class EconomyShop extends PluginBase implements Listener{
 					unset($this->tap[$iusername]);
 				}else{
 					$this->tap[$iusername] = $now;
-					$player->sendMessage($this->getMessage("tap-again", [$shop[7], $shop[6], $shop[8]]));
+					$player->sendMessage($this->getMessage("tap-again", [$shop[6], $shop[7], $shop[8]]));
 				}
 			}else{
 				$this->buyItem($player, $shop);
@@ -361,6 +365,20 @@ class EconomyShop extends PluginBase implements Listener{
 		return "Could not find \"$key\".";
 	}
 
+	private function selectLang(){
+		foreach(preg_grep("/.*lang_.{2}\\.json$/", $this->getResources()) as $resource){
+			$lang = substr($resource, -7, -5);
+			if($this->getConfig()->get("lang", "en") === $lang){
+				$this->lang = json_decode((stream_get_contents($rsc = $this->getResource("lang_".$lang.".json"))), true);
+				@fclose($rsc);
+				return true;
+			}
+		}
+		$this->lang = json_decode((stream_get_contents($rsc = $this->getResource("lang_en.json"))), true);
+		@fclose($rsc);
+		return false;
+	}
+
 	private function replaceColors(&$search = [], &$replace = []){
 		$colors = [
 			"BLACK" => "0",
@@ -388,6 +406,9 @@ class EconomyShop extends PluginBase implements Listener{
 		];
 		foreach($colors as $color => $code){
 			$search[] = "%%".$color."%%";
+			$search[] = "&".$code;
+
+			$replace[] = TextFormat::ESCAPE.$code;
 			$replace[] = TextFormat::ESCAPE.$code;
 		}
 	}

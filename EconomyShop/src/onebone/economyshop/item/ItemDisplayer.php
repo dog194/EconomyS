@@ -2,7 +2,7 @@
 
 /*
  * EconomyS, the massive economy plugin with many features for PocketMine-MP
- * Copyright (C) 2013-2015  onebone <jyc00410@gmail.com>
+ * Copyright (C) 2013-2016  onebone <jyc00410@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,17 +48,15 @@ class ItemDisplayer{
 	}
 
 	public function spawnTo(Player $player){
-		if($player->getLevel() === $this->pos->getLevel()){
-			$pk = new AddItemEntityPacket;
-			$pk->eid = $this->eid;
-			$pk->item = $this->item;
-			$pk->x = $this->pos->x + 0.5;
-			$pk->y = $this->pos->y;
-			$pk->z = $this->pos->z + 0.5;
-			$pk->speedX = $pk->speedY = $pk->speedZ = 0;
+		$pk = new AddItemEntityPacket;
+		$pk->eid = $this->eid;
+		$pk->item = $this->item;
+		$pk->x = $this->pos->x + 0.5;
+		$pk->y = $this->pos->y;
+		$pk->z = $this->pos->z + 0.5;
+		$pk->speedX = $pk->speedY = $pk->speedZ = 0;
 
-			$player->dataPacket($pk);
-		}
+		$player->dataPacket($pk);
 	}
 
 	public function spawnToAll(Level $level = null){

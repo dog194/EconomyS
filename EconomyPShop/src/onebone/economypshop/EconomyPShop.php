@@ -2,7 +2,7 @@
 
 /*
  * EconomyS, the massive economy plugin with many features for PocketMine-MP
- * Copyright (C) 2013-2015  onebone <jyc00410@gmail.com>
+ * Copyright (C) 2013-2016  onebone <jyc00410@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -96,6 +96,11 @@ class EconomyPShop extends PluginBase implements Listener{
 				return;
 			}
 
+			if($cost < 0 or $amount < 1 or (int)$amount != $amount){
+				$player->sendMessage($this->getMessage("wrong-num"));
+				return;
+			}
+
 			$item = Item::fromString($line[2]);
 			if(!$item instanceof Item){
 				$player->sendMessage($this->getMessage("item-not-support", array($line[2], "", "")));
@@ -162,6 +167,10 @@ class EconomyPShop extends PluginBase implements Listener{
 
 				if($shop["owner"] == $player->getName()){
 					$player->sendMessage($this->getMessage("same-player"));
+					return;
+				}
+				if($shop["price"] < 0 or $shop["amount"] < 1){
+					$player->sendMessage($this->getMessage("wrong-num"));
 					return;
 				}
 
